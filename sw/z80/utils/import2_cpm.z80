@@ -1,0 +1,175 @@
+; IMPORT2 - Utility for the Vecoven Hard Drive Emulator
+; CP/M 2.2 Version
+
+; Assembler Control Flags
+
+CPM         EQU     1
+TRSDOS      EQU     0
+
+; CPM OS Calls
+
+BDOS        EQU     0005h       ;bdos entry point
+PARM        EQU     0080h       ;parameters
+B_WCHAR     EQU     2           ;write character function
+B_PRINT     EQU     9
+B_OPENFILE  EQU     15
+B_CLOSEFILE EQU     16
+B_SEARCHFOR EQU     17
+B_WRITESEQ  EQU     21
+B_MAKEFILE  EQU     22
+B_SETDMA    EQU     26
+
+IMPORT2     ORG     0100H
+            LD      (STACKPTR),SP 
+                                ; Save stack pointer on start
+            LD      HL,PARM+1   ; CP/M Parameters
+            PUSH    HL          ; Start POP's this after the interface check
+                                ; Needed for compatibility with TRS version
+            JP      START
+
+; CPM jump table
+
+STARTJ
+DSPLY       PUSH    DE          ; Save everything
+            PUSH    BC
+            PUSH    AF
+DSPLY1      LD      A,(HL)      ; Loop through the characters
+            CP      CR          ; Done if CR or ETC
+            JR      Z,DSPLY2
+            CP      ETX
+            JR      Z,DSPLYX
+            LD      C,B_WCHAR
+            LD      E,A
+            PUSH    HL          ; Display while preserving HL
+            CALL    BDOS
+            POP     HL
+            INC     HL
+            JR      DSPLY1      ; Keep loopng
+DSPLY2      LD      C,B_WCHAR     ; Send the CR/LF from the end of the string
+            LD      E,CR
+            CALL    BDOS
+            LD      C,B_WCHAR
+            LD      E,LF
+            CALL    BDOS
+DSPLYX      POP     AF          ; Restore everything
+            POP     BC
+            POP     DE
+            RET
+DSP         PUSH    HL          ; Save everything
+            PUSH    DE
+            PUSH    BC
+            PUSH    AF
+            LD      C,B_WCHAR
+            LD      E,A         ; Character to print passed in A
+            CALL    BDOS
+            POP     AF
+            POP     BC
+            POP     DE
+            POP     HL            
+            RET
+SETUP       RET 
+FSPEC       PUSH    HL            ; HL contains the start of the filename to be loaded into the DCB           
+            LD      HL,DCB        ; Ensure DCB is clean
+            LD      A,0           ; by first zero filling everything
+            LD      (HL),A
+            LD      DE,DCB+1
+            LD      BC,35
+            LDIR
+            LD      HL,DCB+1      ; and then space filling the filename
+            LD      A,32
+            LD      (HL),A
+            LD      DE,DCB+2
+            LD      BC,10
+            LDIR
+            LD      DE,DCB        ; DE is destination for pushing filename into DCB 
+            POP     HL            ; Restore filename pointer
+            INC     HL            ; Move ahead to see if a drive is specified A:
+            LD      A,(HL)
+            CP      ':'           ; Seperator for Drive ID?
+            JR      Z,FSPEC2      ; Yes
+            DEC     HL            ; No back to start of the filename
+            INC     DE            ; Skip Drive in DCB
+            JR      FSPEC3      
+FSPEC2      DEC     HL            ; Back to drive letter
+            LD      A,(HL)
+            SUB     64            ; 
+            LD      (DE),A        ; Save Drive
+            INC     HL            ; Move to first byte of the filename
+            INC     HL
+            INC     DE
+FSPEC3      LD      BC,8          ; Max bytes in filename
+FSPEC4      LD      A,(HL)        ;
+            CP      '.'           ; Extension seperator?
+            JR      Z,FSPEC5      ; Yes
+            CP      0             ; End?
+            JR      Z,FSPEC7      ; Yes
+            LDI                   ; No.. Copy this character
+            JR      NZ,FSPEC4     ; Loop until max 8 characters is done
+FSPEC5      INC     HL            ; Move beyond the extension seperator
+            LD      DE,DCB+9      ; Start of Extension
+            LD      BC,3          ; Last 3 characters as extension
+FSPEC6      LD      A,(HL)
+            CP      0             ; End?
+            JR      Z,FSPEC7      ; Yes
+            LDI                   ; No.. Copy this character
+            JR      NZ,FSPEC6     ; Loop until max 3 characters is done
+FSPEC7      LD      A,0           ; Return Z to indicate OK
+            AND     A
+            RET
+INIT        RET
+FOPEN    	LD      C,B_SEARCHFOR ; Check if file exists first
+            LD      DE,DCB
+            CALL    BDOS
+            CP      0FFH
+            JR      NZ,EXISTS
+            LD      C,B_MAKEFILE  ; Open the File
+            LD      DE,DCB        ; specified here 
+            CALL    BDOS
+            AND     0F0H          ; Z set if OK / reset if failed
+            RET
+EXISTS      OR      1             ; Z reset if failed
+            RET
+FCLOSE      LD      C,B_CLOSEFILE
+            LD      DE,DCB
+            CALL    BDOS
+            AND     0F0H          ; Z set if OK / reset if failed
+            RET
+FREAD       RET
+FWRITE      PUSH    BC            ; Save State
+            PUSH    DE
+            PUSH    HL
+            LD      C,B_SETDMA
+            LD      DE,IOBUF
+            CALL    BDOS
+            
+            LD      C,B_WRITESEQ
+            LD      DE,DCB
+            CALL    BDOS
+            
+            LD      C,B_SETDMA
+            LD      DE,IOBUF+128
+            CALL    BDOS
+
+            LD      C,B_WRITESEQ
+            LD      DE,DCB
+            CALL    BDOS
+            
+            AND     0FFH         ; Z set if OK / reset if failed
+            
+            POP     HL           ; Restore State
+            POP     DE
+            POP     BC
+            RET
+ERROR       JP      EXIT
+ABORT       JP      EXIT
+SETERN      RET
+EXIT        LD      SP,(STACKPTR)
+            RET
+ENDJ
+
+            INCLUDE import2core.z80
+
+STACKPTR    DW      1
+DCB         DS      36
+      
+            END     IMPORT2

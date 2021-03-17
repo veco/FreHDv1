@@ -1,0 +1,224 @@
+; IMPORT2 - Utility for the Vecoven Hard Drive Emulator
+; Model I, III and 4 DOS Version
+
+; TRS-80 IO Port Definitions
+
+DATA2       EQU     0C2H
+SIZE2       EQU     0C3H
+COMMAND2    EQU     0C4H
+ERROR2      EQU     0C5H
+STATUS      EQU     0CFH
+
+; Assembler Control Flags
+
+CPM         EQU     0
+TRSDOS      EQU     1
+
+
+; Model I/III addresses
+@DSPLY      EQU     4467h
+@DSP        EQU     0033h
+@PARAM      EQU     4454h
+@FSPEC      EQU     441Ch
+@INIT       EQU     4420h
+@OPEN       EQU     4424h
+@CLOSE      EQU     4428h
+@READ       EQU     4436h
+@WRITE      EQU     4439h
+@ERROR      EQU     4409h
+@EXIT       EQU     402dh
+@ABORT      EQU     4030h       
+@PUT        EQU     001bh
+DODCB$      EQU     401dh
+
+; Model 4 SVCs
+@SVC        EQU     40  ; rst address for SVCs
+@DSP6       EQU     2
+@DSPLY6     EQU     10
+@PARAM6     EQU     17
+@FSPEC6	    EQU     78
+@INIT6	    EQU     58
+@OPEN6	    EQU     59
+@CLOSE6     EQU     60
+@READ6      EQU     67
+@WRITE6     EQU     75
+@ERROR6     EQU     26
+@EXIT6      EQU     22
+@ABORT6     EQU     21
+@DSPLY6     EQU     10
+
+            ORG     5200H
+            
+; Model III jump table
+
+STARTJ
+DSPLY       CALL    @DSPLY
+            RET
+DSP         NOP
+            CALL    @DSP
+            RET
+SETUP       LD      A,10H
+            OUT     (0ECH),A        ; Enable External IO Port (required for NewDOS/80)
+            RET                     ; if the Hard Disk drivers have not been loaded
+FSPEC       CALL    @FSPEC
+	        RET
+INIT        CALL    @INIT
+	        RET
+FOPEN       CALL    @OPEN
+        	RET
+FCLOSE      CALL    @CLOSE
+	        RET
+FREAD       CALL    @READ
+	        RET
+FWRITE      LD      (DCB+3), HL
+            CALL    @WRITE
+	        RET
+ERROR       CALL    @ERROR
+	        RET
+EXIT     	CALL    @EXIT
+	        RET
+ABORT       CALL    @ABORT
+	        RET
+SETERN   	CALL    SETERN5
+	        RET
+ENDJ
+
+; Model I jump table
+
+STARTJ1
+DSPLY_1     CALL    @DSPLY
+            RET
+DSP_1       NOP
+            CALL    @DSP
+            RET
+SETUP_1     NOP
+            NOP
+            NOP
+            NOP
+            RET
+FSPEC_1     CALL    @FSPEC
+	        RET
+INIT_1      CALL    @INIT
+	        RET
+OPEN_1    	CALL    @OPEN
+        	RET
+CLOSE_1   	CALL    @CLOSE
+	        RET
+READ_1      CALL    @READ
+	        RET
+WRITE_1     LD      (DCB+3), HL
+            CALL    @WRITE
+	        RET
+ERROR_1     CALL    @ERROR
+	        RET
+EXIT_1    	CALL    @EXIT
+	        RET
+ABORT_1     CALL    @ABORT
+	        RET
+SETERN_1 	CALL    SETERN5
+	        RET
+ENDJ1
+
+; Model 4 jump table
+
+STARTJ6
+DSPLY_6     LD      A,@DSPLY6 
+            RST     @SVC
+            RET
+DSP_6       LD      C,A
+            LD      A,@DSP6
+            RST     @SVC
+            RET
+SETUP_6     NOP
+            NOP
+            NOP
+            NOP
+            RET
+FSPEC_6     LD      A,@FSPEC6
+            RST     @SVC
+            RET
+INIT_6      LD      A,@INIT6
+            RST     @SVC
+            RET
+OPEN_6      LD      A,@OPEN6
+            RST     @SVC
+            RET
+CLOSE_6     LD      A,@CLOSE6
+            RST     @SVC
+            RET
+READ_6      LD      A,@READ6
+            RST     @SVC
+            RET
+WRITE_6     LD      (DCB+3), HL
+            LD      A,@WRITE6
+            RST     @SVC
+            RET
+ERROR_6     LD      A,@ERROR6
+            RST     @SVC
+            RET
+EXIT_6      LD      A,@EXIT6
+            RST     @SVC
+            RET
+ABORT_6     LD      A,@ABORT6
+            RST     @SVC
+            RET
+SETERN_6    CALL    SETERN6
+            RET
+ENDJ6
+
+IMPORT2
+            PUSH    HL              ; Keep the INBUF pointer
+            LD      (PARM),HL       
+            CALL    WHATVER         ; Identify TRS-80 Model
+            CP      1               ; Model 1?
+            JR      NZ,IMPORT2_4    ; No, try for Model 4 instead
+            LD      HL, STARTJ1     ; Start of Model 1 jump table
+            JR      MOVEJUMP
+IMPORT2_4   CP      4
+            JR      NZ,SETUPERN     ; Don't know so try default Model III/LDOS settings
+            LD      HL, STARTJ6     ; Start of Model 4 jump table
+MOVEJUMP    LD      DE, STARTJ      ; Overwrite the active jump table    
+            LD      BC, ENDJ - STARTJ
+            LDIR
+            
+;; EOF handling differs between TRS-80 DOSes:
+;;  For TRSDOS 2.3 and LDOS, word (dcb+12) contains the number of
+;;  256 byte records in the file, byte (dcb+8) contains the EOF
+;;  offset in the last record (0=256).
+;;  For NEWDOS/80 and TRSDOS 1.3, byte (dcb+8) and word (dcb+12) 
+;;  form a 24 bit number containing the relative byte address of EOF.
+;;  Thus (dcb+12) differs by one if the file length is not a
+;;  multiple of 256 bytes.  DOSPLUS also uses this convention,
+;;  and NEWDOS 2.1 probably does too (not checked).
+            
+SETUPERN    LD      A, (4427H)      ; SYSTEM ID FOR NEWDOS/80...
+            SUB     82H             ; ...SHOULD BE 82H (V2.0)
+            JR      Z, GOTID
+            LD      A, (441FH)      ; SYSTEM VERSION NUMBER FOR MOST OTHER DOSES
+            SUB     13H             ; TRSDOS 1.3?
+GOTID       LD      (ERNLDOS), A
+
+            INCLUDE import2core.z80
+
+SETERN5     LD      HL, (DCB+10)    ; current record number
+        	LD      A, (ERNLDOS)    ; get ERN convention
+            OR      A
+            JR      NZ, NOADJ       ; go if TRSDOS 2.3/LDOS convention
+ADJ         OR      C			    ; length multiple of 256 bytes?
+            JR      Z, NOADJ        ; go if so
+        	DEC     HL			    ; no, # of records - 1
+NOADJ       LD      (DCB+12), HL
+	        RET	
+
+SETERN6     LD      HL, (DCB+10)
+            LD      (DCB+12), HL
+            RET
+
+            INCLUDE trsident.z80
+
+PARM        DS      2
+          
+DCB         DEFS    48			; 48 for Model III TRSDOS 1.3   
+
+            END     IMPORT2
+            

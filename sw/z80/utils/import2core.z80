@@ -1,0 +1,364 @@
+; Core - Shared by Versions for all OS's
+
+; Misc Constants
+
+CR          EQU     0DH
+LF          EQU     0AH
+ETX         EQU     03H
+SPC         EQU     20H
+
+; Interface defines
+
+OPENFILE    EQU     03H
+READFILE    EQU     04H
+WRITEFILE   EQU     05H
+CLOSEFILE   EQU     06H
+GETVER      EQU     00H
+
+; FatFS flags
+
+FA_OPEN_EXISTING EQU 00H
+FA_READ          EQU 01H
+FA_WRITE         EQU 02H
+FA_CREATE_NEW    EQU 04H
+FA_CREATE_ALWAYS EQU 08H
+FA_OPEN_ALWAYS   EQU 10H
+
+START       
+            CALL    FREHDTST        ; Check interface is installed
+            POP     HL              ; Restore INBUF$ pointer
+            CP      0               ; No?
+            JP      Z,DONE          ; Then done
+
+; Parameter Parsing
+            
+FLAG0       LD      A,(HL)          ; Look for flags
+            CP      ' '
+            JP      C, USAGE		; Error if line ends here
+            JR      NZ, FLAG1
+            INC     HL
+            JR      FLAG0
+FLAG1   	CP      '-'             ; Any parameters?
+            JR      NZ, SOURCE1     ; No so process the source filename
+            INC     HL
+            LD      A,(HL)
+FLAG3       OR      20H
+            CP      'E'
+            JR      NZ, FLAGL
+            SUB     A
+            LD      (ERNLDOS), A
+            JR      FLAG2
+FLAGL       CP      'L'
+            JR      NZ,FLAGN        ; Check for next flag
+            LD      A, 1
+            LD      (LFLAG), A
+            JR      FLAG2
+FLAGN       CP      'N'
+            JP      NZ, USAGE       ; Unknown flag
+            LD      A, 1
+            LD      (NFLAG), A
+FLAG2       INC     HL
+            LD      A, (HL)
+            CP      ' '
+            JR      NZ, FLAG3       ; Another flag follows
+            INC     HL
+            JR      FLAG0
+SOURCE1     LD      DE,IOBUF+1		; Copy source filename
+            LD      A, ' '
+SOURCE2     CP      (HL)
+            LDI
+            JR      C, SOURCE2
+            DEC     DE              ; Nul terminate source filename
+            LD      A, 0
+            LD      (DE), A              
+            JR      Z, DEST         ; Destination filename given
+
+; No destination name so translate last component of source filename to be destination filename			
+
+        	DEC     HL              ; Back up to terminator
+SOURCE3     DEC     HL              ; Back up to last byte of name
+            LD      A, (HL)
+            IF TRSDOS
+            CP      '.'             ; Change '.' to '/'
+            JR      NZ, NOTDOT
+            LD      (HL), '/'
+            ENDIF
+NOTDOT      CP      '/'
+            JR      Z, SOURCE4
+            CP      ' '
+            JR      NZ, SOURCE3
+SOURCE4     INC HL                  ; Point to start of modified last component 
+
+DEST        LD      DE, DCB         ; Ready to get filename from (hl)
+            CALL    FSPEC
+            JP      NZ, USAGE
+
+            LD      HL, IOBUF+1		; Source Path
+            LD      A, (LFLAG)
+            OR      A
+            CALL    NZ, LCCONV		; Convert path to lower case
+
+        	LD      B, 2            ; length = 2 (flag + null-terminator)
+        	LD      A, 0            ; null-terminator
+STLEN1      CP      (HL)
+        	JR      Z, COPY         ; Yes so start copy
+        	INC     B               ; Found a character
+        	INC     HL
+        	JR      STLEN1
+
+COPY        LD      A, OPENFILE
+            OUT     (COMMAND2), A   ; Send openfile command
+            CALL    WAIT
+            LD      A, B
+            OUT     (SIZE2), A      ; Send size2
+            LD      C, DATA2
+            LD      HL, IOBUF
+            LD      (HL), FA_OPEN_EXISTING|FA_READ	; Flags
+            OTIR
+            CALL    WAIT
+
+
+COPYOPENOK	
+IF TRSDOS
+            CALL    INIT
+ELSE
+            CALL    FOPEN
+ENDIF
+	        JR      Z, OPN2OK
+        	LD      C, A
+            CALL    ERROR
+            JP      ABORT
+
+RLOOP
+OPN2OK  	LD      A, 0
+        	OUT     (SIZE2), A		; request 256 bytes
+	        LD      A, READFILE
+	        OUT     (COMMAND2), A	; read
+	        CALL    WAIT
+	        LD      BC, 0000h
+	        IN      A, (STATUS)		; get status. DRQ set means we read something
+	        AND     08h
+	        JR      Z, READOK
+	        IN      A, (SIZE2)
+	        LD      C, A
+	        OR      A
+	        JR      NZ, READOK
+	        LD      B, 1
+READOK	
+	        PUSH    BC			; save byte count
+	        LD      B, C
+	        LD      C, DATA2
+	        LD      HL, IOBUF
+	        INIR			; read buffer from interface
+	        POP     BC
+;; Translate
+            LD      A, (nflag)		; check for NL feature
+	        AND     A
+	        JR      z, NLFALS
+	        LD      HL, IOBUF
+	        PUSH    BC			; save byte count
+	        LD      A, 0ah
+	        LD      D, 0dh
+	        INC     C			; deal with b=0 and/ c=0
+	        INC     B
+	        JR      tstrt
+TLOOP       CP      (HL)
+	        JR      NZ, NOTCR
+	        LD      (HL), D
+NOTCR   	INC     HL
+TSTRT       DEC     C
+	        JR      NZ, TLOOP
+	        DJNZ    TLOOP
+	        POP     BC			; restore byte count
+
+;; Write
+NLFALS      PUSH    BC			; save byte count
+	        LD      HL, IOBUF
+	        LD      DE, DCB
+        	INC     B			; deal with b=0 and/or c=0
+	        LD      A, C
+	        AND     A
+	        JR      Z, WSTRT
+WLOOP       
+IF CPM
+            LD      A,C         ; Full 256 byte sector?
+            AND     A
+            JR      Z,WFULL     ; Yes
+            LD      HL,IOBUF    ; No... then need to set Ctrl-Z EOF
+            DEC     B           ; Ugly but B is decremented later
+            ADD     HL,BC       ; but too late to add the Ctrl-Z then
+            INC     B           ; because the data is already written
+            LD      (HL),26
+WFULL
+ENDIF
+	        CALL    FWRITE      ; write 256 bytes to file
+            JR      Z, WROK
+	        LD      C, A
+            CALL    ERROR              ; oops, i/o error
+            JP      ABORT
+WROK    	INC     H
+WSTRT       DJNZ    WLOOP
+	        POP     BC			; restore byte count
+
+;; Done?
+	        LD      A, C
+	        AND     A
+         	JR      NZ, CLOSIT		; done for sure
+	        CP      B
+	        JR      NZ, RLOOP		; maybe not done (sloppy)
+
+CLOSIT      LD      A, CLOSEFILE
+        	OUT     (COMMAND2), A
+	        CALL    WAIT
+CLOSOK      
+IF TRSDOS
+            LD      A, C
+	        LD      (dcb+8), A		; set EOF offset
+	        CALL    SETERN		; set ERN (in case shortening file)
+ENDIF
+	        LD      DE, DCB
+            CALL    FCLOSE              ; close the TRS-80 file
+            JR      Z, CLS2OK
+	        LD      C, A
+            CALL    ERROR              ; oops, i/o error
+            JP      ABORT
+CLS2OK      LD      HL, 0                ; all is well
+	        JP      EXIT
+
+
+            RET
+
+USAGE       LD      HL,INTRO        ; What this is all about
+            CALL    DSPLY
+            LD      HL, USAGER      ; Error message and exit
+            CALL    DSPLY
+            JP      ABORT
+
+
+DONE        JP      EXIT
+
+;; Convert (NUL terminated) string in HL to lower case.
+LCCONV      PUSH    HL
+            INC     HL
+            LD      D, H
+            LD      E, L
+LCLOOP      LD      A, (HL)
+            CP      5BH			; USE '[' OR UPARROW AS ESCAPE
+            JR      NZ, LCONV1
+            INC     HL
+            LD      A, (HL)
+            JR      LCONV2		; CHAR AFTER ESC: DON'T CONVERT
+LCONV1      SUB     'A'
+            CP      26
+            LD      A, (HL)
+            JR      NC, LCONV2
+            OR      20H			; CONVERT TO LOWER CASE
+LCONV2      LD      (DE), A
+            INC     HL
+            INC     DE
+            OR      A			; NUL TERMINATOR?
+            JR      NZ, LCLOOP
+            POP     HL
+            RET
+
+;;; wait until the interface is ready
+WAIT        EX      (SP),HL
+            EX      (SP),HL			; SMALL DELAY TO SETTLE THE CONTROLLER
+WAIT1       IN      A, (STATUS)
+            RLCA
+            JR      C, WAIT1
+            IN      A, (STATUS)			; READ STATUS AGAIN
+            AND     01H				; NZ = ERROR
+            JR      NZ, UERROR
+            RET
+
+FREHDTST    LD      A,GETVER        ; Test that the interface exists
+            OUT     (COMMAND2),A
+            CALL    WAIT
+            IN      A,(SIZE2)
+            CP      6
+            JR      NZ,FREHDTSTX    ; Size of 6 indicates interface exists
+            LD      A,1             ; Return HAS IF
+            RET
+FREHDTSTX   LD      HL,INTRO        ; Welcome Message
+            CALL    DSPLY
+            LD      HL,MSGNOIF
+            CALL    DSPLY
+            LD      A,0             ; Return NO IF
+            RET
+
+;; interface error
+UERROR      LD      HL, ERROR_M		; DISPLAY ERROR PREFIX
+        	CALL    DSPLY
+            IN      A, (ERROR2)		; GET ERROR NUMBER
+            CP      15H			; CHECK ERROR NUMBER.
+            JR      C, UERROK
+            SUB     A			; A=0 UNKNOWN ERROR 
+UERROK      LD      L, A
+            LD      H, 00H
+            ADD     HL, HL		; POINTERS ARE 2 BYTES
+            LD      DE, ERROR_TABLE
+            ADD     HL, DE		; HL POINTS TO THE POINTER
+            LD      A, (HL)
+            INC     HL
+            LD      H, (HL)
+            LD      L, A			; HL POINTS TO THE STRING
+            CALL    DSPLY
+            JP      ABORT
+
+
+LFLAG       DEFB 0
+NFLAG       DEFB 0
+ERNLDOS     DEFB 0
+
+INTRO       DEFB    'IMPORT2 '
+
+            INCLUDE VERSION.Z80
+
+            DEFB    ' - Import from SD for the FreHD Hard Drive Emulator',CR
+USAGER      DEFB    'Usage: IMPORT2 [-lne] sdfile [tofile]',CR
+MSGNOIF     DEFB    'Interface not found',CR
+
+ERROR_M     DEFB    'Error: ', 03h
+FR_UNKNOWN  DEFB    'Unknown error', 0dh			; 0
+FR_DISK_ERR DEFB    'Disk error', 0dh			; 1
+FR_INT_ERR  DEFB    'Internal error', 0dh			; 2
+FR_NOT_READY    
+            DEFB    'Drive not ready', 0dh 		; 3
+FR_NO_FILE  DEFB    'File not found', 0dh	  		; 4
+FR_NO_PATH  DEFB    'Path not found', 0dh	  		; 5
+FR_INVALID_NAME
+            DEFB    'Invalid pathname', 0dh		; 6
+FR_DENIED   DEFB    'Access denied', 0dh			; 7
+FR_EXIST    DEFB    'File exists', 0dh			; 8
+FR_INVALID_OBJ
+            DEFB    'File/dir object invalid', 0dh	; 9
+FR_WRITE_PROTECTED
+            DEFB    'Write protected', 0dh		; 10
+FR_INVALID_DRIVE
+            DEFB    'Invalid drive', 0dh		; 11
+FR_NOT_ENABLED  
+            DEFB    'Volume not mounted', 0dh		; 12
+FR_NO_FS    DEFB    'No FAT fs found', 0dh			; 13
+FR_MKFS_ABORTED
+            DEFB    'mkfs aborted', 0dh		; 14
+FR_TIMEOUT  DEFB    'Timeout detected', 0dh		; 15
+FR_LOCKED   DEFB    'File locked', 0dh			; 16
+FR_NOT_ENOUGH_CORE
+            DEFB    'Not enough core', 0dh		; 17
+FR_TOO_MANY_OPEN_FILES
+            DEFB    'Too many open files', 0dh ; 18
+FR_INVALID_PARAM
+            DEFB    'Invalid parameter', 0dh		; 19
+FR_DISK_FULL
+            DEFB    'Disk full', 0dh			; 20
+ERROR_TABLE
+            DEFW    FR_UNKNOWN ,FR_DISK_ERR, FR_INT_ERR, FR_NOT_READY, FR_NO_FILE
+            DEFW    FR_NO_PATH, FR_INVALID_NAME, FR_DENIED, FR_EXIST, FR_INVALID_OBJ
+            DEFW    FR_WRITE_PROTECTED, FR_INVALID_DRIVE, FR_NOT_ENABLED
+            DEFW    FR_NO_FS, FR_MKFS_ABORTED, FR_TIMEOUT, FR_LOCKED
+            DEFW    FR_NOT_ENOUGH_CORE, FR_TOO_MANY_OPEN_FILES, FR_INVALID_PARAM
+            DEFW    FR_DISK_FULL	
+
+IOBUF       DEFS    256
+            

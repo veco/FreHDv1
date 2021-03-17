@@ -1,0 +1,12 @@
+; IMPORT2 - Utility for the Vecoven Hard Drive Emulator
+; TRS-80 CP/M 2.2 Version
+
+; Amstrad PCW8256 Definitions differ from TRS-80
+
+DATA2       EQU     0AAH
+SIZE2       EQU     0ABH
+COMMAND2    EQU     0ACH
+ERROR2      EQU     0ADH
+STATUS      EQU     0A7H
+
+            INCLUDE import2_cpm.z80
