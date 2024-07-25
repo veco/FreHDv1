@@ -1,6 +1,6 @@
 ; Utilities Common Version number
 
-            DB      '2.04'
+            DB      '2.05'
 
 ; Includes machine name in the version message
 ; Can't find another way of doing this
