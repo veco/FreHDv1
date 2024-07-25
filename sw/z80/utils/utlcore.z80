@@ -1,5 +1,12 @@
 ; VHDUTL - Core - Shared by Versions for all OS's
 
+; Bugfix updates by: mayboytim
+; Fault: I found 3 bugs in the VHDUTL 2.03 in the FreHD utils.
+; They appear to be in the trs80gp version as well.
+; The first bug can be demonstrated by skipping a drive when mounting.
+; For example if drives 2,3,4 are mounted but not 1 then list the mounts.
+; Additional 2 are, Corrupt name after adding 'drive 1' and no command line error on missing drive name. 
+
 ; Misc Constants
 
 CR          EQU     0DH
@@ -70,7 +77,7 @@ CHKVER      LD      A,(VPARM+1)     ; Get Firmware Version?
 MNT         LD      A,(APARM+1)     ; Unit specified?
             CP      0
             JP      Z,MNTDISP       ; No so display current config
-            LD      HL,(VHPARM+2)   ; Yes... is VHD File specified?
+            LD      HL,VHPARM+2     ; Yes... is VHD File specified?
             LD      A,(VHPARM+1)
             OR      (HL)                  
             JR      NZ,MNT1
@@ -228,9 +235,9 @@ MNTDSP2B    POP     HL      	    ; Name into display buffer
             LD      DE,DSPBUFFER+6
             LDIR
             CALL    DSPDSPBUFFER    ; Display line
-            LD      BC,DRVINFOSIZE  ; Move index to next entry
+MNTDSP4     LD      BC,DRVINFOSIZE  ; Move index to next entry
             ADD     IX,BC
-MNTDSP4     LD      A,(TEMP)
+            LD      A,(TEMP)
             INC     A
             LD      (TEMP),A
             POP	    AF
@@ -523,7 +530,7 @@ MSGMNTHLT   DB      13,0,'  Press Reset'
 MSGMNTFAIL  DB      'Mount Failed',CR
 MSGDIRERROR DB      'Error Reading Directory',CR
 MNTTITLE    DB      'Addr  Disk File     WP Cylinders  Heads Fast',CR
-BUFFER      DS      64
+BUFFER      DS      4*(6+12+1) ; =76, 6+12+1=infodrive_size, was 64
 NUMBUFFER   DS      16
 DSPBUFFER   DS      DSPBUFFERLEN
 DIRCOLS     DB      0
