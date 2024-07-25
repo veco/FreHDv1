@@ -1,0 +1,12 @@
+FreHD CP/M Tools v2.04 (Stock) - Initial release - see releases section.
+
+Stock tools for CP/M built from 2.14 GitHub master source - no modifications.
+
+vhdutl.com - working and can mount new volumes.
+import2.com - working, importing files from SD card.
+
+I was not able to locate these version on any CP/M volume images I could locate.
+
+May be useful for others wishing to manipulate existing and new volumes stored on your FreHD from your TRS-80 using CP/M.
+
+*Kaypro files (with 'k' in the name) also included but NOT tested.
