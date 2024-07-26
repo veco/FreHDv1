@@ -1,5 +1,11 @@
 ; Core - Shared by Versions for all OS's
 
+; Bug found by: hallorant
+; A paramater parsing bug was found in import2core.z80 that has been fixed.  The
+; flag letter was ORed with 20H to make them lowercase, but the checks were made
+; against uppercase constants (e.g., 'N') not lowercase as this would require
+; (e.g., 'n').
+
 ; Misc Constants
 
 CR          EQU     0DH
@@ -38,22 +44,22 @@ FLAG0       LD      A,(HL)          ; Look for flags
             JR      NZ, FLAG1
             INC     HL
             JR      FLAG0
-FLAG1   	CP      '-'             ; Any parameters?
+FLAG1       CP      '-'             ; Any parameters?
             JR      NZ, SOURCE1     ; No so process the source filename
             INC     HL
             LD      A,(HL)
-FLAG3       OR      20H
-            CP      'E'
+FLAG3       OR      20H             ; Make the flag character lowercase
+            CP      'e'
             JR      NZ, FLAGL
             SUB     A
             LD      (ERNLDOS), A
             JR      FLAG2
-FLAGL       CP      'L'
+FLAGL       CP      'l'
             JR      NZ,FLAGN        ; Check for next flag
             LD      A, 1
             LD      (LFLAG), A
             JR      FLAG2
-FLAGN       CP      'N'
+FLAGN       CP      'n'
             JP      NZ, USAGE       ; Unknown flag
             LD      A, 1
             LD      (NFLAG), A
@@ -75,7 +81,7 @@ SOURCE2     CP      (HL)
 
 ; No destination name so translate last component of source filename to be destination filename			
 
-        	DEC     HL              ; Back up to terminator
+            DEC     HL              ; Back up to terminator
 SOURCE3     DEC     HL              ; Back up to last byte of name
             LD      A, (HL)
             IF TRSDOS
@@ -361,4 +367,4 @@ ERROR_TABLE
             DEFW    FR_DISK_FULL	
 
 IOBUF       DEFS    256
-            
+
