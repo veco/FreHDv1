@@ -1,0 +1,17 @@
+FreHD Tools Update Notes - all platforms
+
+Version Updated to: v2.05
+
+Incorporated Bugfix updates by: mayboytim (https://github.com/maboytim)
+
+Notes taken from "Discord" - Emulation - channel (https://discordapp.com/channels/458077089493680160/751862459542798446)
+
+Fault: I found 3 bugs in the VHDUTL 2.03 in the FreHD utils.
+They appear to be in the trs80gp version as well.
+The first bug can be demonstrated by skipping a drive when mounting.
+For example, if drives 2,3,4 are mounted but not 1 then list the mounts.
+Additional 2 are, Corrupt name after adding 'drive 1' and no command line error on missing drive name.
+
+Release binaries have now been created for all platforms (CP/M, LSDOS, etc) 
+
+Please see notes in the Release section.
