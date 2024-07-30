@@ -4,8 +4,9 @@
 ; Fault: I found 3 bugs in the VHDUTL 2.03 in the FreHD utils.
 ; They appear to be in the trs80gp version as well.
 ; The first bug can be demonstrated by skipping a drive when mounting.
-; For example if drives 2,3,4 are mounted but not 1 then list the mounts.
+; For example if drives 2,3,4 are mounted but not 1 then the list of the mounts (MNT) will be blank.
 ; Additional 2 are, Corrupt name after adding 'drive 1' and no command line error on missing drive name. 
+; The above fixes were found in 2.03 (zip file) and merged with updates from this master 2.04 version.
 
 ; Misc Constants
 
@@ -16,7 +17,7 @@ SPC         EQU     20H
 
 ; Directory Attributes
 
-AM_RDO      EQU     001H    	    ; Read only
+AM_RDO      EQU     001H            ; Read only
 AM_HID      EQU     002H            ; Hidden
 AM_SYS      EQU     004H            ; System
 AM_VOL      EQU     008H            ; Volume label
@@ -530,7 +531,7 @@ MSGMNTHLT   DB      13,0,'  Press Reset'
 MSGMNTFAIL  DB      'Mount Failed',CR
 MSGDIRERROR DB      'Error Reading Directory',CR
 MNTTITLE    DB      'Addr  Disk File     WP Cylinders  Heads Fast',CR
-BUFFER      DS      4*(6+12+1) ; =76, 6+12+1=infodrive_size, was 64
+BUFFER      DS      4*(6+12+1)      ; =76, 6+12+1=infodrive_size, was 64
 NUMBUFFER   DS      16
 DSPBUFFER   DS      DSPBUFFERLEN
 DIRCOLS     DB      0
