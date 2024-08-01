@@ -129,6 +129,10 @@ UCHAR trs_extra_settime(UCHAR step)
  *       bytes 1..n : filename
  * 4. TRS waits
  * 5. TRS checks status for error (in ERROR2 if any)
+ * 
+ * Bugfix: maboytim
+ * Reset state_bytesdone2 (issue only present if performing a read/write function)
+ * 
  */
 UCHAR trs_extra_openfile(UCHAR step)
 {
@@ -148,6 +152,8 @@ UCHAR trs_extra_openfile(UCHAR step)
 			state_size2 = sizeof (DWORD);
 			memcpy(extra_buffer, (const void *)&state_file2.fsize,
               sizeof (DWORD));
+
+			state_bytesdone2 = 0;
 		}
 	}
 	
