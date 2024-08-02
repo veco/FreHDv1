@@ -3,9 +3,12 @@ Notes on patches to firmware.
  * Bugfix to "trs_extra.c": maboytim
  * Reset state_bytesdone2 (issue only present if performing a read/write function)
  * 
+ * Standard Version - Model I/II/4/4p etc
  * Version Bump to 2.16
  * Update to version.c, crc.inc & Final FatFS.hex files accordingly.
  *
- * "m2" version source has been updated but not built at this time (ie; version.c, crc.inc & Final FatFS.hex not updated)
+ * M2 Version
+ * Version Bump to 3.68
+ * Update to version.c, crc.inc & Final FatFS.hex files accordingly.
  *
 
