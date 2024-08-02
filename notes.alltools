@@ -12,6 +12,13 @@ The first bug can be demonstrated by skipping a drive when mounting.
 For example, if drives 2,3,4 are mounted but not 1 then list the mounts.
 Additional 2 are, Corrupt name after adding 'drive 1' and no command line error on missing drive name.
 
+Also incorporating Bugfix upadte by: hallorant (https://github.com/hallorant)
+
+A paramater parsing bug was found in import2core.z80 that has been fixed.  The
+flag letter was ORed with 20H to make them lowercase, but the checks were made
+against uppercase constants (e.g., 'N') not lowercase as this would require
+(e.g., 'n').
+
 Release binaries have now been created for all platforms (CP/M, LSDOS, etc) 
 
 Please see notes in the Release section.
