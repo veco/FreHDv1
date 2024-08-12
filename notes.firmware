@@ -1,3 +1,10 @@
+Current as of this writing – “FreHD” firmware version 2.16
+
+These versions have now been merged into the base repository: https://github.com/veco/FreHDv1
+
+10/8/2024
+FreHD_2.16.hex (Version: 2.16)
+
 Notes on patches to firmware.
  * 
  * Bugfix to "trs_extra.c": maboytim
