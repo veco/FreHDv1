@@ -1,10 +1,15 @@
-;; fupdate.z80
+;; eupdate.z80
 ;; Frederic Vecoven, 4/15/13
 ;;
-;; Usage: FUPDATE fromfile
+;; Usage: EUPDATE fromfile
 ;;
 ;; FUPDATE will put the hard drive emulator in bootloader mode, and send
 ;; the HEX file using the TRS80.
+;;
+;; Firmware version display after update not formatting correctly - issue located in getversion.z80
+;; Added missing c,a load to ensure DSP call works correctly in getversion.z80 (by ontheslab/intangybles)
+;;
+;; Additional name corections to EUPDATE
 ;;
 
 ; Assembler Control Flags

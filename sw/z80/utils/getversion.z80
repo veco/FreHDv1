@@ -32,6 +32,7 @@ DSVERSION3  SRL		A
             SRL		A
             SRL		A
             ADD		A,30H			; To ASCII
+            LD		C,A             ; Added missing load to ensure DSP call works correctly
             CALL	DSP             ; LDOS 6 wants in C, LDOS 5 in A - DSP handles this
 DSVERSION4  POP		AF
             AND		00FH			; Mask out the upper digit

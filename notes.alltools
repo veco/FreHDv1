@@ -22,3 +22,9 @@ against uppercase constants (e.g., 'N') not lowercase as this would require
 Release binaries have now been created for all platforms (CP/M, LSDOS, etc) 
 
 Please see notes in the Release section.
+
+Update Log: 14/08/24
+
+;; fupdate.z80, eupdate.z80 & getversion.z80
+;; Firmware version display after update not formatting correctly - issue located in getversion.z80
+;; Added missing c,a load to ensure DSP call works correctly in getversion.z80 (by ontheslab/intangybles)

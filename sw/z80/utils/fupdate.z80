@@ -6,6 +6,9 @@
 ;; FUPDATE will put the hard drive emulator in bootloader mode, and send
 ;; the HEX file using the TRS80.
 ;;
+;; Firmware version display after update not formatting correctly - issue located in getversion.z80
+;; Added missing c,a load to ensure DSP call works correctly in getversion.z80 (by ontheslab/intangybles)
+;;
 
 ; Assembler Control Flags
 
