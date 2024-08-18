@@ -13,7 +13,7 @@ getver     		equ     0
 data2       	equ     0c2h
 command2    	equ     0c4h
 status      	equ     0cfh
-svn_rev_		equ		SVN_REV	
+svn_rev_		equ		1009h ;SVN_REV	
 
 im_cur		db	0			; currently select boot file
 im_max		db	0			; number of boot files found
@@ -159,13 +159,13 @@ get_version:
 +	call	bin2bcd		; enter here to mask the leading 0
 	push	af
 	and	0f0h		; mask out the lower digit
-	jr	z,++
-	jr	+
+	jr	z,+++
+	jr	++
 
 + 	call	bin2bcd		; enter here to keep the leading 0
 	push	af
 	and	0f0h 			
-	srl	a
++	srl	a
 	srl	a
 	srl	a
 	srl	a
