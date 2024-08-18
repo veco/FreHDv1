@@ -1,4 +1,4 @@
-Current as of this writing – “FreHD” firmware version 2.16
+Current as of this writing – “FreHD” firmware version 2.16 - fred.rom (Version: 1009)
 
 These versions have now been merged into the base repository: https://github.com/veco/FreHDv1
 
@@ -19,3 +19,10 @@ Notes on patches to firmware.
  * Update to version.c, crc.inc & Final FatFS.hex files accordingly.
  *
 
+17/8/2024
+The following new corrections have been added.
+
+ *
+ * A version display and crash bug has also been corrected in “menu.asm”: maboytim
+ * fred.rom (Version: 1009)
+ *
