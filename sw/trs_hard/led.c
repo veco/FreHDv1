@@ -44,10 +44,10 @@ void led_update(led_t *led)
 		val = 1;
 		break;
 	case LED_FAST_BLINK:
-		val = led_count & 0x40;
+		val = (led_count & 0x40) >> 6;
 		break;
 	case LED_SLOW_BLINK:
-		val = led_count & 0x80;
+		val = (led_count & 0x80) >> 7;
 		break;
 	}
 	
